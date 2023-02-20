@@ -95,12 +95,12 @@
         var __uuid = __uuid_random_uid();
         var __cbf = function (event) {
             if(event.message_id && event.message_id == event.data.message_id) {
-                callback(event.data);
                 try {
-                    window.removeEventListener('message',__cbf)
+                    callback(event.data);
                 } catch (error) {
                     return null;
                 }
+                window.removeEventListener('message',__cbf);
             }
         }
         if(data.message_id && window.addEventListener) {
@@ -108,4 +108,18 @@
         }
         parent.postMessage(data,'*');
     };
+    var __lti_send_async = function (data) {
+        if(data.message_id) {
+            __lti_send_callback(data);
+            return LTIProm(function (_) { _() });
+        }
+        return LTIProm(function (resolve, reject) {
+            __lti_send_callback(data,function (dat) {
+                resolve(dat);
+            });
+            setTimeout(function () {
+                reject(new TypeError('response from Canvas LTI timed out'));
+            },10000)
+        });
+    }
 })();
