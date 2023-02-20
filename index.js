@@ -1,53 +1,4 @@
 (function () {
-    var LTIProm = function (func) {
-        if(window.Promise) {
-            return new Promise(func);
-        }
-        var thens = [];
-        var catches = [];
-        var thened = false;
-        var caught = false;
-        var thend = null;
-        var catchd = null;
-        /* promise pony fill */
-        var prom = {
-            then: function (call) {
-                if(thened) {
-                    call(thend)
-                } else {
-                    thens.push(call)
-                }
-                return prom;
-            },
-            catch: function (call) {
-                if(caught) {
-                    call(catchd)
-                } else {
-                    thens.push(call)
-                }
-                return prom;
-            }
-        };
-        func(
-            function (result) {
-                if(thened || caught) { return }
-                thend = result;
-                thened = true;
-                thens.forEach(THEN => {
-                    THEN (result)
-                });
-            },
-            function (error) {
-                if(thened || caught) { return }
-                catchd = error;
-                caught = true;
-                catches.forEach(CATCH => {
-                    CATCH (error)
-                });
-            },
-        );
-        return prom;
-    };
     var __uuid_random_hex = function () {
         return ['A','B','C','D','E','F','0','1','2','3','4','5','6','7','8','9'][Math.floor(Math.random()*16)];
     };
@@ -109,17 +60,41 @@
         parent.postMessage(data,'*');
     };
     var __lti_send_async = function (data) {
-        if(data.message_id) {
-            __lti_send_callback(data);
-            return LTIProm(function (_) { _() });
-        }
-        return LTIProm(function (resolve, reject) {
-            __lti_send_callback(data,function (dat) {
-                resolve(dat);
-            });
+        return new Promise((resolve, reject) => {
+            if(data.message_id) {
+                __lti_send_callback(data);
+                return resolve();
+            }
+            var __res_timed_out = false;
             setTimeout(function () {
+                __res_timed_out = true;
                 reject(new TypeError('response from Canvas LTI timed out'));
-            },10000)
+            },10000);
+            __lti_send_callback(data,dat => {
+                if(!__res_timed_out) {
+                    resolve(dat);
+                }
+            });
         });
+    };
+    window.CanvasLTI = {
+        ShowAlert: ({ title, type, body }) => {
+            if(!type) { type='success'; }
+            if(type != 'success' && type != 'error' && type != 'warning') {
+                throw new TypeError("the 'type' paramater must be one of 'success', 'warning', or 'error'");
+            }
+            if(!title) {
+                throw new TypeError("the 'title' parameter is required");
+            }
+            if(!body) {
+                throw new TypeError("the 'body' parameter is required");
+            }
+            return __lti_send_async({
+                subject: 'lti.showAlert',
+                type: type||'success',
+                body,
+                title
+            });
+        }
     }
 })();
