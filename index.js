@@ -92,8 +92,8 @@
             return __lti_send_async({
                 subject: 'lti.showAlert',
                 type: type||'success',
-                body,
-                title
+                body: body,
+                title: title
             });
         }
     }
